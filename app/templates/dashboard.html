@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PDF Print Queue</title>
+    <link rel="stylesheet" href="/static/dashboard.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Bulutli print navbati</p>
+        <h1>PDF Print Queue</h1>
+      </div>
+      <div class="topbar__status">
+        <span class="dot {{ 'dot--ok' if stats.agents_online else 'dot--idle' }}"></span>
+        <span>{{ stats.agents_online }} ta agent online</span>
+      </div>
+    </header>
+
+    <main>
+      <nav class="tabs" aria-label="Dashboard sections">
+        <button class="tab {{ 'is-active' if active_tab == 'overview' else '' }}" type="button" data-tab-target="overview">Umumiy</button>
+        <button class="tab {{ 'is-active' if active_tab == 'jobs' else '' }}" type="button" data-tab-target="jobs">Joblar</button>
+        <button class="tab {{ 'is-active' if active_tab == 'agents' else '' }}" type="button" data-tab-target="agents">Agentlar</button>
+      </nav>
+
+      <section class="tab-panel {{ 'is-active' if active_tab == 'overview' else '' }}" data-tab-panel="overview">
+        <section class="metrics" aria-label="System metrics">
+          <article class="metric">
+            <span>Jami joblar</span>
+            <strong>{{ stats.total }}</strong>
+          </article>
+          <article class="metric">
+            <span>Navbatdagi ishlar</span>
+            <strong>{{ stats.queue_depth }}</strong>
+          </article>
+          <article class="metric">
+            <span>Bugun chiqarildi</span>
+            <strong>{{ stats.today_printed }}</strong>
+          </article>
+          <article class="metric">
+            <span>Bugungi xatolar</span>
+            <strong>{{ stats.today_failed }}</strong>
+          </article>
+        </section>
+
+        <section class="split">
+          <div class="panel">
+            <div class="panel__header">
+              <h2>Printer</h2>
+              <span class="badge badge--{{ printer_status.status | lower }}">{{ printer_status.status }}</span>
+            </div>
+            <dl class="details">
+              <div>
+              <dt>Nomi</dt>
+                <dd>{{ printer_status.name }}</dd>
+              </div>
+              <div>
+              <dt>Ulangan sessiyalar</dt>
+                <dd>{{ connected_agents }}</dd>
+              </div>
+            </dl>
+          </div>
+
+          <div class="panel">
+            <div class="panel__header">
+              <h2>Faol agentlar</h2>
+              <span class="badge">{{ agents | length }}</span>
+            </div>
+            <div class="agent-list">
+              {% for agent in agents[:3] %}
+                <div class="agent-row">
+                  <span class="dot {{ 'dot--ok' if agent.is_online else 'dot--idle' }}"></span>
+                  <div>
+                    <strong>{{ agent.agent_id }}</strong>
+                    <small>{{ agent.printer_name or 'Printer nomi yo‘q' }} - {{ agent.printer_status }}</small>
+                  </div>
+                </div>
+              {% else %}
+                <p class="empty">Hali agent ulanmagan.</p>
+              {% endfor %}
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <section class="tab-panel {{ 'is-active' if active_tab == 'jobs' else '' }}" data-tab-panel="jobs">
+        <section class="panel">
+          <div class="panel__header">
+            <div>
+              <h2>Joblar</h2>
+              <p class="panel__subtext">{{ pagination.total }} ta natija - {{ pagination.page }} / {{ pagination.total_pages or 1 }} sahifa</p>
+            </div>
+          <a class="link-button" href="/docs">API hujjatlar</a>
+          </div>
+
+          <details class="filter-disclosure" {{ 'open' if filters_active else '' }}>
+            <summary>
+              <span>Filterlar</span>
+              {% if filters_active %}
+                <strong>Faol</strong>
+              {% else %}
+                <strong>Yopiq</strong>
+              {% endif %}
+            </summary>
+            <form class="filters" method="get" action="/">
+              <input type="hidden" name="tab" value="jobs">
+              <label>
+                <span>Order raqami</span>
+                <input name="order_number" value="{{ filters.order_number }}" placeholder="ORD-2026-001">
+              </label>
+              <label>
+                <span>User code</span>
+                <input name="user_code" value="{{ filters.user_code }}" placeholder="USR-ABC">
+              </label>
+              <label>
+                <span>Status</span>
+                <select name="status">
+                  <option value="">Barcha statuslar</option>
+                  {% for status_name in statuses %}
+                    <option value="{{ status_name }}" {{ 'selected' if filters.status == status_name else '' }}>{{ status_name }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>
+                <span>Boshlanish sana</span>
+                <input type="date" name="date_from" value="{{ filters.date_from }}">
+              </label>
+              <label>
+                <span>Tugash sana</span>
+                <input type="date" name="date_to" value="{{ filters.date_to }}">
+              </label>
+              <label>
+                <span>Limit</span>
+                <select name="limit">
+                  {% for option in [10, 20, 50, 100] %}
+                    <option value="{{ option }}" {{ 'selected' if filters.limit == option else '' }}>{{ option }}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <div class="filter-actions">
+                <button type="submit">Qo‘llash</button>
+                <a href="/?tab=jobs">Tozalash</a>
+              </div>
+            </form>
+          </details>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Order</th>
+                  <th>User</th>
+                  <th>Status</th>
+                  <th>Agent</th>
+                  <th>Yangilangan</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for job in jobs %}
+                  <tr>
+                    <td>#{{ job.id }}</td>
+                    <td>{{ job.order_number }}</td>
+                    <td>{{ job.user_code }}</td>
+                    <td><span class="badge badge--{{ job.status | lower }}">{{ job.status }}</span></td>
+                    <td>{{ job.agent_id or 'Istalgan' }}</td>
+                    <td>{{ job.updated_at }}</td>
+                  </tr>
+                {% else %}
+                  <tr>
+                    <td colspan="6" class="empty">Mos job topilmadi.</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          <nav class="pagination" aria-label="Job pages">
+            <a class="{{ 'is-disabled' if pagination.page <= 1 else '' }}" href="{{ first_url }}">Birinchi</a>
+            <a class="{{ 'is-disabled' if pagination.page <= 1 else '' }}" href="{{ prev_url }}">Oldingi</a>
+            <span>Sahifa {{ pagination.page }} / {{ pagination.total_pages or 1 }}</span>
+            <a class="{{ 'is-disabled' if pagination.page >= (pagination.total_pages or 1) else '' }}" href="{{ next_url }}">Keyingi</a>
+            <a class="{{ 'is-disabled' if pagination.page >= (pagination.total_pages or 1) else '' }}" href="{{ last_url }}">Oxirgi</a>
+          </nav>
+        </section>
+      </section>
+
+      <section class="tab-panel {{ 'is-active' if active_tab == 'agents' else '' }}" data-tab-panel="agents">
+        <section class="panel">
+          <div class="panel__header">
+            <div>
+              <h2>Agentlar</h2>
+              <p class="panel__subtext">Cloud serverga ulangan local Windows servislar</p>
+            </div>
+            <span class="badge">{{ agents | length }}</span>
+          </div>
+          <div class="agent-table">
+            {% for agent in agents %}
+              <details class="agent-card" {{ 'open' if agent.is_online else '' }}>
+                <summary>
+                  <span class="dot {{ 'dot--ok' if agent.is_online else 'dot--idle' }}"></span>
+                  <strong>{{ agent.agent_id }}</strong>
+                  <span class="badge badge--{{ agent.printer_status | lower }}">{{ agent.printer_status }}</span>
+                </summary>
+                <dl class="details details--wide">
+                  <div>
+                    <dt>Printer</dt>
+                    <dd>{{ agent.printer_name or 'Printer nomi yo‘q' }}</dd>
+                  </div>
+                  <div>
+                    <dt>Oxirgi aloqa</dt>
+                    <dd>{{ agent.last_seen_at or 'Hech qachon' }}</dd>
+                  </div>
+                  <div>
+                    <dt>Printer navbati</dt>
+                    <dd>{{ agent.details.jobs if agent.details.jobs is defined else 0 }}</dd>
+                  </div>
+                  <div>
+                    <dt>Raw status</dt>
+                    <dd>{{ agent.details.raw_status if agent.details.raw_status is defined else 'Noma’lum' }}</dd>
+                  </div>
+                </dl>
+              </details>
+            {% else %}
+              <p class="empty padded">Hali agent ulanmagan.</p>
+            {% endfor %}
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script>
+      const tabs = document.querySelectorAll("[data-tab-target]");
+      const panels = document.querySelectorAll("[data-tab-panel]");
+
+      tabs.forEach((tab) => {
+        tab.addEventListener("click", () => {
+          const target = tab.dataset.tabTarget;
+          tabs.forEach((item) => item.classList.toggle("is-active", item === tab));
+          panels.forEach((panel) => panel.classList.toggle("is-active", panel.dataset.tabPanel === target));
+          const url = new URL(window.location.href);
+          url.searchParams.set("tab", target);
+          history.replaceState(null, "", url);
+        });
+      });
+    </script>
+  </body>
+</html>
