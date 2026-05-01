@@ -1,5 +1,6 @@
 import time
 from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlencode
 
@@ -21,6 +22,24 @@ from app.services.archive_service import cleanup_archive
 logger = get_logger(__name__)
 BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+
+def format_datetime(value) -> str:
+    if not value:
+        return ""
+    if isinstance(value, datetime):
+        return value.strftime("%Y-%m-%d %H:%M:%S")
+    text = str(value)
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        return parsed.strftime("%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        if "T" in text:
+            return text.replace("T", " ").split("+", 1)[0].split("Z", 1)[0]
+        return text
+
+
+templates.env.filters["datetime_human"] = format_datetime
 
 
 def create_directories() -> None:

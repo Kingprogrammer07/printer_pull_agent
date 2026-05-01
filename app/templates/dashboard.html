@@ -1,16 +1,15 @@
 <!doctype html>
-<html lang="en">
+<html lang="uz">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>PDF Print Queue</title>
+    <title>UZPOST agent</title>
     <link rel="stylesheet" href="/static/dashboard.css">
   </head>
   <body>
     <header class="topbar">
       <div>
-        <p class="eyebrow">Bulutli print navbati</p>
-        <h1>PDF Print Queue</h1>
+        <h1>UZPOST agent</h1>
       </div>
       <div class="topbar__status">
         <span class="dot {{ 'dot--ok' if stats.agents_online else 'dot--idle' }}"></span>
@@ -19,14 +18,14 @@
     </header>
 
     <main>
-      <nav class="tabs" aria-label="Dashboard sections">
+      <nav class="tabs" aria-label="Dashboard bolimlari">
         <button class="tab {{ 'is-active' if active_tab == 'overview' else '' }}" type="button" data-tab-target="overview">Umumiy</button>
         <button class="tab {{ 'is-active' if active_tab == 'jobs' else '' }}" type="button" data-tab-target="jobs">Joblar</button>
         <button class="tab {{ 'is-active' if active_tab == 'agents' else '' }}" type="button" data-tab-target="agents">Agentlar</button>
       </nav>
 
       <section class="tab-panel {{ 'is-active' if active_tab == 'overview' else '' }}" data-tab-panel="overview">
-        <section class="metrics" aria-label="System metrics">
+        <section class="metrics" aria-label="Tizim korsatkichlari">
           <article class="metric">
             <span>Jami joblar</span>
             <strong>{{ stats.total }}</strong>
@@ -53,11 +52,11 @@
             </div>
             <dl class="details">
               <div>
-              <dt>Nomi</dt>
+                <dt>Nomi</dt>
                 <dd>{{ printer_status.name }}</dd>
               </div>
               <div>
-              <dt>Ulangan sessiyalar</dt>
+                <dt>Ulangan sessiyalar</dt>
                 <dd>{{ connected_agents }}</dd>
               </div>
             </dl>
@@ -74,7 +73,7 @@
                   <span class="dot {{ 'dot--ok' if agent.is_online else 'dot--idle' }}"></span>
                   <div>
                     <strong>{{ agent.agent_id }}</strong>
-                    <small>{{ agent.printer_name or 'Printer nomi yo‘q' }} - {{ agent.printer_status }}</small>
+                    <small>{{ agent.printer_name or 'Printer nomi yoq' }} - {{ agent.printer_status }}</small>
                   </div>
                 </div>
               {% else %}
@@ -92,7 +91,7 @@
               <h2>Joblar</h2>
               <p class="panel__subtext">{{ pagination.total }} ta natija - {{ pagination.page }} / {{ pagination.total_pages or 1 }} sahifa</p>
             </div>
-          <a class="link-button" href="/docs">API hujjatlar</a>
+            <a class="link-button" href="/docs">API hujjatlar</a>
           </div>
 
           <details class="filter-disclosure" {{ 'open' if filters_active else '' }}>
@@ -140,7 +139,7 @@
                 </select>
               </label>
               <div class="filter-actions">
-                <button type="submit">Qo‘llash</button>
+                <button type="submit">Qollash</button>
                 <a href="/?tab=jobs">Tozalash</a>
               </div>
             </form>
@@ -166,7 +165,7 @@
                     <td>{{ job.user_code }}</td>
                     <td><span class="badge badge--{{ job.status | lower }}">{{ job.status }}</span></td>
                     <td>{{ job.agent_id or 'Istalgan' }}</td>
-                    <td>{{ job.updated_at }}</td>
+                    <td>{{ job.updated_at | datetime_human }}</td>
                   </tr>
                 {% else %}
                   <tr>
@@ -177,7 +176,7 @@
             </table>
           </div>
 
-          <nav class="pagination" aria-label="Job pages">
+          <nav class="pagination" aria-label="Job sahifalari">
             <a class="{{ 'is-disabled' if pagination.page <= 1 else '' }}" href="{{ first_url }}">Birinchi</a>
             <a class="{{ 'is-disabled' if pagination.page <= 1 else '' }}" href="{{ prev_url }}">Oldingi</a>
             <span>Sahifa {{ pagination.page }} / {{ pagination.total_pages or 1 }}</span>
@@ -207,11 +206,11 @@
                 <dl class="details details--wide">
                   <div>
                     <dt>Printer</dt>
-                    <dd>{{ agent.printer_name or 'Printer nomi yo‘q' }}</dd>
+                    <dd>{{ agent.printer_name or 'Printer nomi yoq' }}</dd>
                   </div>
                   <div>
                     <dt>Oxirgi aloqa</dt>
-                    <dd>{{ agent.last_seen_at or 'Hech qachon' }}</dd>
+                    <dd>{{ (agent.last_seen_at | datetime_human) or 'Hech qachon' }}</dd>
                   </div>
                   <div>
                     <dt>Printer navbati</dt>
@@ -219,7 +218,7 @@
                   </div>
                   <div>
                     <dt>Raw status</dt>
-                    <dd>{{ agent.details.raw_status if agent.details.raw_status is defined else 'Noma’lum' }}</dd>
+                    <dd>{{ agent.details.raw_status if agent.details.raw_status is defined else 'Nomalum' }}</dd>
                   </div>
                 </dl>
               </details>

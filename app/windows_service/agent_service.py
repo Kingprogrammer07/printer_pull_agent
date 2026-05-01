@@ -1,5 +1,7 @@
 import asyncio
 import os
+import threading
+import traceback
 
 import servicemanager
 import win32event
@@ -20,12 +22,16 @@ class PDFPrintAgentService(win32serviceutil.ServiceFramework):
         self.stop_event = win32event.CreateEvent(None, 0, 0, None)
         self.loop = None
         self.task = None
+        self.thread = None
 
     def SvcStop(self):
         self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
         win32event.SetEvent(self.stop_event)
         if self.loop and self.task:
             self.loop.call_soon_threadsafe(self.task.cancel)
+        if self.thread and self.thread.is_alive():
+            self.thread.join(timeout=10)
+        self.ReportServiceStatus(win32service.SERVICE_STOPPED)
 
     def SvcDoRun(self):
         servicemanager.LogMsg(
@@ -33,10 +39,13 @@ class PDFPrintAgentService(win32serviceutil.ServiceFramework):
             servicemanager.PYS_SERVICE_STARTED,
             (self._svc_name_, ""),
         )
-        self.main()
+        os.chdir(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+        self.ReportServiceStatus(win32service.SERVICE_RUNNING)
+        self.thread = threading.Thread(target=self.main, name="PDFPrintAgent", daemon=True)
+        self.thread.start()
+        win32event.WaitForSingleObject(self.stop_event, win32event.INFINITE)
 
     def main(self):
-        os.chdir(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
         self.task = self.loop.create_task(LocalPrintAgent().run_forever())
@@ -44,10 +53,11 @@ class PDFPrintAgentService(win32serviceutil.ServiceFramework):
             self.loop.run_until_complete(self.task)
         except asyncio.CancelledError:
             pass
+        except Exception:
+            servicemanager.LogErrorMsg(traceback.format_exc())
         finally:
             self.loop.close()
 
 
 if __name__ == "__main__":
     win32serviceutil.HandleCommandLine(PDFPrintAgentService)
-
