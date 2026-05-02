@@ -62,6 +62,21 @@ h2 {
   font-size: 13px;
 }
 
+.notice {
+  margin-bottom: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
+  padding: 12px 14px;
+}
+
+.notice--error {
+  background: #fee2e2;
+  color: var(--danger);
+}
+
 main {
   width: min(1180px, calc(100vw - 32px));
   margin: 24px auto 48px;
@@ -223,7 +238,9 @@ main {
 
 .filter-actions button,
 .filter-actions a,
-.pagination a {
+.pagination a,
+.maintenance-form button,
+.small-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -244,6 +261,80 @@ main {
   border-color: var(--accent);
   background: var(--accent);
   color: #ffffff;
+}
+
+.inline-form {
+  margin: 0;
+}
+
+.small-action {
+  min-height: 30px;
+  padding: 5px 9px;
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 12px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.action-panels {
+  margin-top: 12px;
+}
+
+.maintenance-form {
+  display: grid;
+  gap: 10px;
+  padding: 16px 18px;
+}
+
+.maintenance-form button {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.maintenance-form .danger-action {
+  border-color: var(--danger);
+  background: var(--danger);
+}
+
+.checkbox-row,
+.field-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.checkbox-row input {
+  width: 16px;
+  height: 16px;
+}
+
+.field-row {
+  align-items: flex-start;
+  flex-direction: column;
+}
+
+.field-row span {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.field-row input {
+  width: 140px;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font: inherit;
+  padding: 8px 10px;
 }
 
 .filter-disclosure {
@@ -308,7 +399,8 @@ main {
 
 .topbar__status,
 .badge,
-.link-button {
+.link-button,
+.live-indicator {
   display: inline-flex;
   align-items: center;
   min-height: 32px;
@@ -333,7 +425,8 @@ main {
 }
 
 .badge,
-.link-button {
+.link-button,
+.live-indicator {
   border-radius: 6px;
   padding: 5px 10px;
   background: #eef2f7;
@@ -341,6 +434,11 @@ main {
   font-size: 12px;
   font-weight: 700;
   text-decoration: none;
+}
+
+.live-indicator {
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .badge--online,

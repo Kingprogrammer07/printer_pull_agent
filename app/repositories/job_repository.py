@@ -134,6 +134,84 @@ class JobRepository(BaseRepository):
             await db.commit()
             return row_to_dict(await self._get_by_id(db, id))
 
+    async def retry_job_for_print(self, id: int) -> dict[str, Any] | None:
+        async with self._connect() as db:
+            row = await self._get_by_id(db, id)
+            if row is None:
+                return None
+            if row["status"] not in {"FAILED", "FAILED_PERM", "PRINTER_OFFLINE"}:
+                return row_to_dict(row)
+            await db.execute(
+                """
+                UPDATE print_jobs
+                SET status = 'PENDING',
+                    retry_count = 0,
+                    next_retry_at = NULL,
+                    error_message = NULL,
+                    claimed_at = NULL,
+                    locked_until = NULL,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (utc_now(), id),
+            )
+            await db.commit()
+            return row_to_dict(await self._get_by_id(db, id))
+
+    async def retry_jobs_by_status(self, statuses: list[str]) -> int:
+        allowed = [status for status in statuses if status in {"FAILED", "FAILED_PERM", "PRINTER_OFFLINE"}]
+        if not allowed:
+            return 0
+        placeholders = ", ".join("?" for _ in allowed)
+        async with self._connect() as db:
+            cursor = await db.execute(
+                f"""
+                UPDATE print_jobs
+                SET status = 'PENDING',
+                    retry_count = 0,
+                    next_retry_at = NULL,
+                    error_message = NULL,
+                    claimed_at = NULL,
+                    locked_until = NULL,
+                    updated_at = ?
+                WHERE status IN ({placeholders})
+                """,
+                [utc_now(), *allowed],
+            )
+            await db.commit()
+            return int(cursor.rowcount)
+
+    async def cleanup_jobs(self, statuses: list[str], older_than_days: int = 0) -> int:
+        allowed_statuses = {
+            "PRINTED",
+            "FAILED",
+            "FAILED_PERM",
+            "PRINTER_OFFLINE",
+        }
+        selected = [status for status in statuses if status in allowed_statuses]
+        if not selected:
+            return 0
+
+        placeholders = ", ".join("?" for _ in selected)
+        params: list[Any] = [*selected]
+        age_clause = ""
+        if older_than_days > 0:
+            cutoff = (datetime.now(timezone.utc) - timedelta(days=older_than_days)).replace(microsecond=0).isoformat()
+            age_clause = " AND updated_at <= ?"
+            params.append(cutoff)
+
+        async with self._connect() as db:
+            cursor = await db.execute(
+                f"""
+                DELETE FROM print_jobs
+                WHERE status IN ({placeholders})
+                {age_clause}
+                """,
+                params,
+            )
+            await db.commit()
+            return int(cursor.rowcount)
+
     async def get_paginated(
         self,
         page: int,

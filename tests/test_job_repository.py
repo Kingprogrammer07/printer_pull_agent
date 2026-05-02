@@ -38,3 +38,45 @@ async def test_stale_jobs_are_recovered(repo):
     recovered = await repo.get_by_id(job["id"])
     assert recovered["status"] == "PENDING"
 
+
+@pytest.mark.asyncio
+async def test_retry_failed_job_for_print(repo):
+    job = await repo.create(
+        {
+            "order_number": "ORD-3",
+            "user_code": "USR-3",
+            "pdf_url": "https://example.com/c.pdf",
+        }
+    )
+    await repo.update_status(job["id"], "FAILED_PERM", retry_count=3, error_message="bad")
+
+    retried = await repo.retry_job_for_print(job["id"])
+
+    assert retried["status"] == "PENDING"
+    assert retried["retry_count"] == 0
+    assert retried["error_message"] is None
+
+
+@pytest.mark.asyncio
+async def test_cleanup_jobs_by_status(repo):
+    failed = await repo.create(
+        {
+            "order_number": "ORD-4",
+            "user_code": "USR-4",
+            "pdf_url": "https://example.com/d.pdf",
+        }
+    )
+    pending = await repo.create(
+        {
+            "order_number": "ORD-5",
+            "user_code": "USR-5",
+            "pdf_url": "https://example.com/e.pdf",
+        }
+    )
+    await repo.update_status(failed["id"], "FAILED_PERM")
+
+    deleted = await repo.cleanup_jobs(["FAILED_PERM"], older_than_days=0)
+
+    assert deleted == 1
+    assert await repo.get_by_id(failed["id"]) is None
+    assert await repo.get_by_id(pending["id"]) is not None

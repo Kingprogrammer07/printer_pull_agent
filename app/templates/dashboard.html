@@ -12,12 +12,17 @@
         <h1>UZPOST agent</h1>
       </div>
       <div class="topbar__status">
+        <span class="live-indicator" id="liveStatus">Live</span>
         <span class="dot {{ 'dot--ok' if stats.agents_online else 'dot--idle' }}"></span>
         <span>{{ stats.agents_online }} ta agent online</span>
       </div>
     </header>
 
     <main>
+      {% if notice %}
+        <div class="notice notice--{{ notice_kind }}">{{ notice }}</div>
+      {% endif %}
+
       <nav class="tabs" aria-label="Dashboard bolimlari">
         <button class="tab {{ 'is-active' if active_tab == 'overview' else '' }}" type="button" data-tab-target="overview">Umumiy</button>
         <button class="tab {{ 'is-active' if active_tab == 'jobs' else '' }}" type="button" data-tab-target="jobs">Joblar</button>
@@ -155,6 +160,7 @@
                   <th>Status</th>
                   <th>Agent</th>
                   <th>Yangilangan</th>
+                  <th>Amal</th>
                 </tr>
               </thead>
               <tbody>
@@ -166,10 +172,19 @@
                     <td><span class="badge badge--{{ job.status | lower }}">{{ job.status }}</span></td>
                     <td>{{ job.agent_id or 'Istalgan' }}</td>
                     <td>{{ job.updated_at | datetime_human }}</td>
+                    <td>
+                      {% if job.status in retryable_statuses %}
+                        <form method="post" action="/dashboard/jobs/{{ job.id }}/retry" class="inline-form">
+                          <button type="submit" class="small-action">Qayta print</button>
+                        </form>
+                      {% else %}
+                        <span class="muted">-</span>
+                      {% endif %}
+                    </td>
                   </tr>
                 {% else %}
                   <tr>
-                    <td colspan="6" class="empty">Mos job topilmadi.</td>
+                    <td colspan="7" class="empty">Mos job topilmadi.</td>
                   </tr>
                 {% endfor %}
               </tbody>
@@ -183,6 +198,60 @@
             <a class="{{ 'is-disabled' if pagination.page >= (pagination.total_pages or 1) else '' }}" href="{{ next_url }}">Keyingi</a>
             <a class="{{ 'is-disabled' if pagination.page >= (pagination.total_pages or 1) else '' }}" href="{{ last_url }}">Oxirgi</a>
           </nav>
+        </section>
+
+        <section class="split action-panels">
+          <div class="panel">
+            <div class="panel__header">
+              <div>
+                <h2>Qayta print</h2>
+                <p class="panel__subtext">Failed bo'lgan joblarni qayta navbatga beradi</p>
+              </div>
+            </div>
+            <form class="maintenance-form" method="post" action="/dashboard/jobs/retry-failed">
+              <label class="checkbox-row">
+                <input type="checkbox" name="statuses" value="FAILED" checked>
+                <span>FAILED</span>
+              </label>
+              <label class="checkbox-row">
+                <input type="checkbox" name="statuses" value="FAILED_PERM" checked>
+                <span>FAILED_PERM</span>
+              </label>
+              <label class="checkbox-row">
+                <input type="checkbox" name="statuses" value="PRINTER_OFFLINE">
+                <span>PRINTER_OFFLINE</span>
+              </label>
+              <button type="submit">Tanlanganlarni qayta berish</button>
+            </form>
+          </div>
+
+          <div class="panel">
+            <div class="panel__header">
+              <div>
+                <h2>Cleanup</h2>
+                <p class="panel__subtext">Tanlangan statusdagi eski joblarni ro'yxatdan o'chiradi</p>
+              </div>
+            </div>
+            <form class="maintenance-form" method="post" action="/dashboard/cleanup">
+              <label class="field-row">
+                <span>Necha kundan eski</span>
+                <input type="number" min="0" name="older_than_days" value="0">
+              </label>
+              <label class="checkbox-row">
+                <input type="checkbox" name="statuses" value="PRINTED" checked>
+                <span>PRINTED</span>
+              </label>
+              <label class="checkbox-row">
+                <input type="checkbox" name="statuses" value="FAILED_PERM" checked>
+                <span>FAILED_PERM</span>
+              </label>
+              <label class="checkbox-row">
+                <input type="checkbox" name="statuses" value="FAILED">
+                <span>FAILED</span>
+              </label>
+              <button type="submit" class="danger-action">Cleanup qilish</button>
+            </form>
+          </div>
         </section>
       </section>
 
@@ -243,6 +312,32 @@
           url.searchParams.set("tab", target);
           history.replaceState(null, "", url);
         });
+      });
+
+      const refreshMs = 5000;
+      const liveStatus = document.getElementById("liveStatus");
+      const interactiveSelector = "input, select, textarea, button";
+
+      function canRefresh() {
+        const active = document.activeElement;
+        const isEditing = active && active.matches && active.matches(interactiveSelector);
+        return document.visibilityState === "visible" && !isEditing;
+      }
+
+      setInterval(() => {
+        if (canRefresh()) {
+          window.location.reload();
+          return;
+        }
+        if (liveStatus) {
+          liveStatus.textContent = "Live pause";
+        }
+      }, refreshMs);
+
+      document.addEventListener("visibilitychange", () => {
+        if (liveStatus) {
+          liveStatus.textContent = document.visibilityState === "visible" ? "Live" : "Live pause";
+        }
       });
     </script>
   </body>

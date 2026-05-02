@@ -4,9 +4,9 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlencode
 
-from fastapi import FastAPI, Query, Request
+from fastapi import FastAPI, Form, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -40,6 +40,12 @@ def format_datetime(value) -> str:
 
 
 templates.env.filters["datetime_human"] = format_datetime
+
+
+def redirect_with_notice(request: Request, notice: str, kind: str = "ok") -> RedirectResponse:
+    target = request.headers.get("referer") or "/?tab=jobs"
+    separator = "&" if "?" in target else "?"
+    return RedirectResponse(f"{target}{separator}{urlencode({'notice': notice, 'notice_kind': kind})}", status_code=303)
 
 
 def create_directories() -> None:
@@ -135,6 +141,8 @@ async def dashboard(
     date_from: str | None = None,
     date_to: str | None = None,
     tab: str | None = None,
+    notice: str | None = None,
+    notice_kind: str | None = None,
 ):
     repo: JobRepository = request.app.state.job_repo
     stats = await repo.get_stats()
@@ -180,6 +188,9 @@ async def dashboard(
             "filters": filters,
             "filters_active": filters_active,
             "active_tab": active_tab,
+            "notice": notice,
+            "notice_kind": notice_kind or "ok",
+            "retryable_statuses": {"FAILED", "FAILED_PERM", "PRINTER_OFFLINE"},
             "statuses": [
                 "PENDING",
                 "CLAIMED",
@@ -197,3 +208,38 @@ async def dashboard(
             "connected_agents": request.app.state.agent_manager.connected_count(),
         },
     )
+
+
+@app.post("/dashboard/jobs/{job_id}/retry")
+async def dashboard_retry_job(request: Request, job_id: int):
+    repo: JobRepository = request.app.state.job_repo
+    updated = await repo.retry_job_for_print(job_id)
+    if updated is None:
+        return redirect_with_notice(request, "Job topilmadi", "error")
+    if updated["status"] != "PENDING":
+        return redirect_with_notice(request, "Bu jobni qayta printga berib bo'lmaydi", "error")
+    await request.app.state.agent_manager.broadcast({"type": "job_available"})
+    return redirect_with_notice(request, f"Job #{job_id} qayta navbatga berildi")
+
+
+@app.post("/dashboard/jobs/retry-failed")
+async def dashboard_retry_failed(
+    request: Request,
+    statuses: list[str] | None = Form(default=None),
+):
+    repo: JobRepository = request.app.state.job_repo
+    count = await repo.retry_jobs_by_status(statuses or [])
+    if count:
+        await request.app.state.agent_manager.broadcast({"type": "job_available"})
+    return redirect_with_notice(request, f"{count} ta job qayta navbatga berildi")
+
+
+@app.post("/dashboard/cleanup")
+async def dashboard_cleanup(
+    request: Request,
+    statuses: list[str] | None = Form(default=None),
+    older_than_days: int = Form(default=0),
+):
+    repo: JobRepository = request.app.state.job_repo
+    count = await repo.cleanup_jobs(statuses or [], older_than_days=max(older_than_days, 0))
+    return redirect_with_notice(request, f"Cleanup: {count} ta job o'chirildi")
