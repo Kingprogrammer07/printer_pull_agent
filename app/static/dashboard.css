@@ -240,7 +240,9 @@ main {
 .filter-actions a,
 .pagination a,
 .maintenance-form button,
-.small-action {
+.small-action,
+.topbar-action,
+.login-form button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -276,6 +278,11 @@ main {
   font-size: 12px;
 }
 
+.topbar-action {
+  min-height: 32px;
+  background: #ffffff;
+}
+
 .muted {
   color: var(--muted);
 }
@@ -299,6 +306,22 @@ main {
 .maintenance-form .danger-action {
   border-color: var(--danger);
   background: var(--danger);
+}
+
+.danger-panel {
+  border-color: #fecaca;
+}
+
+.danger-content {
+  display: grid;
+  gap: 12px;
+  padding: 16px 18px;
+}
+
+.danger-content p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
 }
 
 .checkbox-row,
@@ -329,12 +352,71 @@ main {
 }
 
 .field-row input {
-  width: 140px;
+  width: min(100%, 280px);
   min-height: 38px;
   border: 1px solid var(--line);
   border-radius: 6px;
   font: inherit;
   padding: 8px 10px;
+}
+
+.login-page {
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.login-shell {
+  width: min(420px, 100%);
+  margin: 0;
+}
+
+.login-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 24px;
+}
+
+.login-card__header {
+  margin-bottom: 18px;
+}
+
+.login-card__header p {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+
+.login-form {
+  display: grid;
+  gap: 14px;
+}
+
+.login-form label {
+  display: grid;
+  gap: 6px;
+}
+
+.login-form span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.login-form input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font: inherit;
+  padding: 9px 11px;
+}
+
+.login-form button {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #ffffff;
 }
 
 .filter-disclosure {
@@ -575,7 +657,7 @@ tr:last-child td {
 
   .tabs {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     width: 100%;
   }
 

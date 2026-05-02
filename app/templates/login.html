@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="uz">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>UZPOST agent - Kirish</title>
+    <link rel="stylesheet" href="/static/dashboard.css">
+  </head>
+  <body class="login-page">
+    <main class="login-shell">
+      <section class="login-card">
+        <div class="login-card__header">
+          <h1>UZPOST agent</h1>
+          <p>Dashboardga kirish</p>
+        </div>
+
+        {% if error %}
+          <div class="notice notice--error">{{ error }}</div>
+        {% endif %}
+
+        <form class="login-form" method="post" action="/login" autocomplete="off">
+          <input type="hidden" name="next_url" value="{{ next_url }}">
+          <label>
+            <span>Username</span>
+            <input name="username" value="printer" required autofocus>
+          </label>
+          <label>
+            <span>Parol</span>
+            <input type="password" name="password" required>
+          </label>
+          <button type="submit">Kirish</button>
+        </form>
+      </section>
+    </main>
+  </body>
+</html>

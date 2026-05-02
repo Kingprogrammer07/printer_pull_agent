@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     ready_dir: str = "./downloads/ready"
     archive_dir: str = "./downloads/archive"
     archive_retention_days: int = 7
+    db_backup_path: str = "./data/backups/latest_print_jobs.db"
 
     max_concurrent_downloads: int = 5
     download_timeout_connect: int = 10
@@ -31,6 +32,9 @@ class Settings(BaseSettings):
     sumatra_path: str = ""
     print_timeout_seconds: int = 60
     print_copies: int = 1
+    local_pdf_cleanup_after_print: bool = True
+    local_pdf_cleanup_interval_seconds: int = 3600
+    local_pdf_retention_hours: int = 24
 
     service_name: str = "PDFPrintQueue"
     service_display_name: str = "PDF Print Queue Service"
@@ -38,6 +42,15 @@ class Settings(BaseSettings):
     agent_id: str = "windows-agent-1"
     server_url: str = "http://127.0.0.1:8000"
     agent_poll_interval: int = 3
+
+    admin_username: str = "printer"
+    admin_password: str = "mandarin_cargo"
+    auth_secret: str = ""
+    auth_cookie_name: str = "uzpost_agent_session"
+    auth_session_hours: int = 8
+    login_lock_failures: int = 3
+    login_lock_minutes: int = 15
+    auth_cookie_secure: bool = False
 
     model_config = SettingsConfigDict(
         env_file=".env",

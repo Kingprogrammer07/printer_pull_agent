@@ -1,4 +1,5 @@
 import asyncio
+import time
 from urllib.parse import urlparse, urlunparse
 
 import aiohttp
@@ -7,6 +8,7 @@ from app.core.config import settings
 from app.core.logger import get_logger
 from app.repositories.job_repository import utc_now
 from app.services.download_service import DownloadService
+from app.services.local_file_cleanup import LocalFileCleanup
 from app.services.print_service import PrintService
 
 
@@ -20,6 +22,10 @@ class LocalPrintAgent:
         self.poll_interval = settings.agent_poll_interval
         self.download_service = DownloadService(settings)
         self.print_service = PrintService(settings.printer_name)
+        self.file_cleanup = LocalFileCleanup(settings)
+        self.cleanup_after_print = settings.local_pdf_cleanup_after_print
+        self.cleanup_interval = max(settings.local_pdf_cleanup_interval_seconds, 0)
+        self._last_cleanup_at = 0.0
 
     async def run_forever(self) -> None:
         while True:
@@ -40,6 +46,7 @@ class LocalPrintAgent:
                 await self._send_heartbeat(ws)
                 while True:
                     await self._send_heartbeat(ws)
+                    await self._cleanup_local_files_if_due()
                     await ws.send_json({"type": "claim_next"})
                     message = await self._wait_for_job_message(ws)
 
@@ -63,9 +70,13 @@ class LocalPrintAgent:
                 return message
             if message.get("type") == "job_available":
                 await ws.send_json({"type": "claim_next"})
+            if message.get("type") == "cleanup_local_files":
+                deleted = await self.file_cleanup.cleanup_all_files()
+                await ws.send_json({"type": "local_cleanup_done", "deleted": deleted})
 
     async def _process_job(self, ws, job: dict) -> None:
         job_id = int(job["id"])
+        local_path: str | None = None
         logger.info("agent_job_received", job_id=job_id, order_number=job["order_number"])
         try:
             await self._send_job_status(ws, job_id, "DOWNLOADING")
@@ -84,6 +95,8 @@ class LocalPrintAgent:
             await self._send_job_status(ws, job_id, "PRINTING", file_size_bytes=file_size)
             await self.print_service.print_pdf(local_path)
             await self._send_job_status(ws, job_id, "PRINTED", file_size_bytes=file_size)
+            if self.cleanup_after_print and local_path:
+                await self.file_cleanup.delete_downloaded_pdf(local_path)
             logger.info("agent_job_printed", job_id=job_id)
         except Exception as exc:
             logger.error("agent_job_failed", job_id=job_id, error=str(exc))
@@ -94,6 +107,15 @@ class LocalPrintAgent:
                 error_message=str(exc),
                 retryable=True,
             )
+
+    async def _cleanup_local_files_if_due(self) -> None:
+        if self.cleanup_interval <= 0:
+            return
+        now = time.monotonic()
+        if now - self._last_cleanup_at < self.cleanup_interval:
+            return
+        self._last_cleanup_at = now
+        await self.file_cleanup.cleanup_old_files()
 
     async def _send_heartbeat(self, ws) -> None:
         status = "UNKNOWN"
@@ -147,4 +169,3 @@ async def main() -> None:
 
 if __name__ == "__main__":
     asyncio.run(main())
-

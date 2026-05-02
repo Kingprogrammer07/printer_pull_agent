@@ -15,6 +15,9 @@
         <span class="live-indicator" id="liveStatus">Live</span>
         <span class="dot {{ 'dot--ok' if stats.agents_online else 'dot--idle' }}"></span>
         <span>{{ stats.agents_online }} ta agent online</span>
+        <form method="post" action="/logout" class="inline-form">
+          <button type="submit" class="topbar-action">Chiqish</button>
+        </form>
       </div>
     </header>
 
@@ -27,6 +30,7 @@
         <button class="tab {{ 'is-active' if active_tab == 'overview' else '' }}" type="button" data-tab-target="overview">Umumiy</button>
         <button class="tab {{ 'is-active' if active_tab == 'jobs' else '' }}" type="button" data-tab-target="jobs">Joblar</button>
         <button class="tab {{ 'is-active' if active_tab == 'agents' else '' }}" type="button" data-tab-target="agents">Agentlar</button>
+        <button class="tab {{ 'is-active' if active_tab == 'settings' else '' }}" type="button" data-tab-target="settings">Sozlamalar</button>
       </nav>
 
       <section class="tab-panel {{ 'is-active' if active_tab == 'overview' else '' }}" data-tab-panel="overview">
@@ -294,6 +298,44 @@
             {% else %}
               <p class="empty padded">Hali agent ulanmagan.</p>
             {% endfor %}
+          </div>
+        </section>
+      </section>
+
+      <section class="tab-panel {{ 'is-active' if active_tab == 'settings' else '' }}" data-tab-panel="settings">
+        <section class="panel">
+          <div class="panel__header">
+            <div>
+              <h2>Agent fayllari</h2>
+              <p class="panel__subtext">Windows servis yuklab olgan PDF fayllarni local papkalardan tozalaydi</p>
+            </div>
+            <span class="badge">{{ connected_agents }} ta sessiya</span>
+          </div>
+          <form class="maintenance-form" method="post" action="/dashboard/agents/cleanup-files">
+            <button type="submit">Ulangan agentlarda PDF cleanup qilish</button>
+          </form>
+        </section>
+
+        <section class="panel danger-panel">
+          <div class="panel__header">
+            <div>
+              <h2>Server tozalash</h2>
+              <p class="panel__subtext">Barcha job va agent yozuvlari o'chiriladi, undan oldin yangi backup olinadi</p>
+            </div>
+            <span class="badge badge--failed">Xavfli amal</span>
+          </div>
+          <div class="danger-content">
+            <p>
+              Bu amal serverdagi database ma'lumotlarini to'liq o'chiradi. Oldingi backup o'chib,
+              uning o'rniga yangi backup yoziladi: <strong>{{ db_backup_path }}</strong>
+            </p>
+            <form class="maintenance-form" method="post" action="/dashboard/full-cleanup">
+              <label class="field-row">
+                <span>Tasdiqlash</span>
+                <input name="confirmation" placeholder="OCHIRISH" autocomplete="off">
+              </label>
+              <button type="submit" class="danger-action">Barcha ma'lumotlarni backup bilan o'chirish</button>
+            </form>
           </div>
         </section>
       </section>

@@ -57,6 +57,11 @@ async def agent_websocket(
                 )
                 await websocket.send_json({"type": "job_status_ack", "job": job})
 
+            elif message_type == "local_cleanup_done":
+                await websocket.send_json(
+                    {"type": "local_cleanup_ack", "deleted": int(message.get("deleted") or 0)}
+                )
+
             else:
                 await websocket.send_json({"type": "error", "detail": f"Unknown message type: {message_type}"})
     except WebSocketDisconnect:

@@ -1,5 +1,7 @@
 import pytest
 
+from app.services.database_maintenance import create_database_backup
+
 
 @pytest.mark.asyncio
 async def test_create_is_idempotent(repo):
@@ -80,3 +82,41 @@ async def test_cleanup_jobs_by_status(repo):
     assert deleted == 1
     assert await repo.get_by_id(failed["id"]) is None
     assert await repo.get_by_id(pending["id"]) is not None
+
+
+@pytest.mark.asyncio
+async def test_delete_all_data_removes_jobs_and_agents(repo):
+    job = await repo.create(
+        {
+            "order_number": "ORD-6",
+            "user_code": "USR-6",
+            "pdf_url": "https://example.com/f.pdf",
+            "agent_id": "agent-1",
+        }
+    )
+    await repo.heartbeat_agent("agent-1", printer_name="Xprinter XP-D481B")
+
+    deleted = await repo.delete_all_data()
+
+    assert deleted == {"jobs": 1, "agents": 1}
+    assert await repo.get_by_id(job["id"]) is None
+    assert await repo.list_agents() == []
+
+
+@pytest.mark.asyncio
+async def test_database_backup_replaces_previous_backup(repo, tmp_path):
+    await repo.create(
+        {
+            "order_number": "ORD-7",
+            "user_code": "USR-7",
+            "pdf_url": "https://example.com/g.pdf",
+        }
+    )
+    backup_path = tmp_path / "backups" / "latest.db"
+
+    first_backup = await create_database_backup(repo.database.db_path, str(backup_path))
+    backup_path.write_text("old backup", encoding="utf-8")
+    second_backup = await create_database_backup(repo.database.db_path, str(backup_path))
+
+    assert first_backup == second_backup
+    assert backup_path.read_bytes() != b"old backup"

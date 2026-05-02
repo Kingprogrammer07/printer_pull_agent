@@ -212,6 +212,24 @@ class JobRepository(BaseRepository):
             await db.commit()
             return int(cursor.rowcount)
 
+    async def delete_all_data(self) -> dict[str, int]:
+        async with self._connect() as db:
+            jobs_cursor = await db.execute("SELECT COUNT(*) AS total FROM print_jobs")
+            agents_cursor = await db.execute("SELECT COUNT(*) AS total FROM print_agents")
+            jobs_total = int((await jobs_cursor.fetchone())["total"])
+            agents_total = int((await agents_cursor.fetchone())["total"])
+
+            await db.execute("DELETE FROM print_jobs")
+            await db.execute("DELETE FROM print_agents")
+            try:
+                await db.execute(
+                    "DELETE FROM sqlite_sequence WHERE name IN ('print_jobs', 'print_agents')"
+                )
+            except aiosqlite.Error:
+                pass
+            await db.commit()
+            return {"jobs": jobs_total, "agents": agents_total}
+
     async def get_paginated(
         self,
         page: int,
