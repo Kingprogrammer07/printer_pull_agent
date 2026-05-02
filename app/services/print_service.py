@@ -1,9 +1,12 @@
 import asyncio
 import os
+import shutil
+import subprocess
 from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from app.core.config import settings
 from app.core.exceptions import PrinterError
 
 
@@ -42,8 +45,20 @@ PRINTER_STATUS_POWER_SAVE = 0x01000000
 
 
 class PrintService:
-    def __init__(self, printer_name: str = ""):
+    def __init__(
+        self,
+        printer_name: str = "",
+        *,
+        pdf_print_backend: str | None = None,
+        sumatra_path: str | None = None,
+        print_timeout_seconds: int | None = None,
+        print_copies: int | None = None,
+    ):
         self.printer_name = printer_name or self._default_printer()
+        self.pdf_print_backend = (pdf_print_backend or settings.pdf_print_backend).lower()
+        self.sumatra_path = sumatra_path if sumatra_path is not None else settings.sumatra_path
+        self.print_timeout_seconds = print_timeout_seconds or settings.print_timeout_seconds
+        self.print_copies = max(1, int(print_copies or settings.print_copies))
 
     def get_printer_status(self) -> PrinterStatus:
         details = self.get_detailed_status()
@@ -109,13 +124,85 @@ class PrintService:
         if self.get_printer_status() != PrinterStatus.ONLINE:
             raise PrinterError(f"Printer is not online: {self.printer_name}")
 
-        win32api = self._import_win32api()
-        operation = "printto" if self.printer_name else "print"
-        params = f'"{self.printer_name}"' if self.printer_name else None
-        result = win32api.ShellExecute(0, operation, str(path), params, os.getcwd(), 0)
-        if result <= 32:
-            raise PrinterError(f"ShellExecute print failed with code {result}")
+        if self.pdf_print_backend not in {"auto", "sumatra", "shell"}:
+            raise PrinterError(f"Unknown PDF print backend: {self.pdf_print_backend}")
+
+        if self.pdf_print_backend in {"auto", "sumatra"}:
+            sumatra = self._resolve_sumatra_path()
+            if sumatra:
+                return self._print_with_sumatra(sumatra, path)
+            if self.pdf_print_backend == "sumatra":
+                raise PrinterError("SumatraPDF.exe not found. Set SUMATRA_PATH or install SumatraPDF.")
+
+        return self._print_with_shell_execute(path)
+
+    def _print_with_sumatra(self, sumatra_path: str, pdf_path: Path) -> bool:
+        command = [
+            sumatra_path,
+            "-print-to",
+            self.printer_name,
+            "-print-settings",
+            f"{self.print_copies}x",
+            "-silent",
+            "-exit-on-print",
+            str(pdf_path),
+        ]
+        completed = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=self.print_timeout_seconds,
+            check=False,
+        )
+        if completed.returncode != 0:
+            stderr = completed.stderr.strip()
+            stdout = completed.stdout.strip()
+            detail = stderr or stdout or f"exit code {completed.returncode}"
+            raise PrinterError(f"SumatraPDF print failed: {detail}")
         return True
+
+    def _print_with_shell_execute(self, pdf_path: Path) -> bool:
+        win32api = self._import_win32api()
+        for copy_number in range(self.print_copies):
+            try:
+                result = win32api.ShellExecute(
+                    0,
+                    "printto",
+                    str(pdf_path),
+                    f'"{self.printer_name}"',
+                    os.getcwd(),
+                    0,
+                )
+            except Exception as exc:
+                raise PrinterError(
+                    "ShellExecute PDF print failed. Install SumatraPDF and set SUMATRA_PATH if this PDF viewer "
+                    f"does not support printto. Copy {copy_number + 1}/{self.print_copies}. Original error: {exc}"
+                ) from exc
+            if result <= 32:
+                raise PrinterError(
+                    "ShellExecute PDF print failed. Install SumatraPDF and set SUMATRA_PATH if this PDF viewer "
+                    f"does not support printto. Copy {copy_number + 1}/{self.print_copies}. ShellExecute code: {result}"
+                )
+        return True
+
+    def _resolve_sumatra_path(self) -> str | None:
+        candidates = []
+        if self.sumatra_path:
+            candidates.append(self.sumatra_path)
+        which_path = shutil.which("SumatraPDF.exe") or shutil.which("SumatraPDF")
+        if which_path:
+            candidates.append(which_path)
+        candidates.extend(
+            [
+                r"C:\Program Files\SumatraPDF\SumatraPDF.exe",
+                r"C:\Program Files (x86)\SumatraPDF\SumatraPDF.exe",
+                str(Path.home() / "AppData" / "Local" / "SumatraPDF" / "SumatraPDF.exe"),
+            ]
+        )
+        for candidate in candidates:
+            if candidate and Path(candidate).exists():
+                return str(Path(candidate))
+        return None
 
     @staticmethod
     def _default_printer() -> str:
@@ -142,4 +229,3 @@ class PrintService:
             return win32api
         except ImportError as exc:
             raise PrinterError("pywin32 is required for PDF printing on Windows") from exc
-

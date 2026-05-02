@@ -27,6 +27,10 @@ class Settings(BaseSettings):
 
     printer_name: str = ""
     printer_poll_interval: int = 10
+    pdf_print_backend: str = "auto"
+    sumatra_path: str = ""
+    print_timeout_seconds: int = 60
+    print_copies: int = 1
 
     service_name: str = "PDFPrintQueue"
     service_display_name: str = "PDF Print Queue Service"
