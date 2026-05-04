@@ -80,6 +80,11 @@ def is_public_http_path(path: str) -> bool:
     return path in AUTH_PUBLIC_PATHS or path.startswith("/static/")
 
 
+def is_agent_websocket_path(path: str) -> bool:
+    """Agent WebSocket upgrade requests do not use cookie auth."""
+    return path.startswith("/api/v1/agents/") and path.endswith("/ws")
+
+
 def add_security_headers(response: Response) -> Response:
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
@@ -174,7 +179,12 @@ app.include_router(health.router, prefix="/api/v1")
 @app.middleware("http")
 async def require_login(request: Request, call_next):
     path = request.url.path
-    if request.method == "OPTIONS" or is_public_http_path(path) or auth_manager.is_authenticated(request):
+    if (
+        request.method == "OPTIONS"
+        or is_public_http_path(path)
+        or is_agent_websocket_path(path)
+        or auth_manager.is_authenticated(request)
+    ):
         response = await call_next(request)
         return add_security_headers(response)
 
