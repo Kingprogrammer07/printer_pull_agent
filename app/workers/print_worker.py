@@ -1,11 +1,14 @@
 import asyncio
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from app.core.config import Settings
 from app.core.logger import get_logger
 from app.repositories.job_repository import JobRepository, utc_now
 from app.services.archive_service import archive_printed_file
 from app.services.print_service import PrintService
+
+TASHKENT_TZ = ZoneInfo("Asia/Tashkent")
 
 
 logger = get_logger(__name__)
@@ -66,13 +69,13 @@ class PrintWorker:
 
     async def _print_job(self, job: dict) -> None:
         job_id = int(job["id"])
-        started = datetime.now(timezone.utc)
+        started = datetime.now(TASHKENT_TZ)
         await self.repo.update_status(job_id, "PRINTING", error_message=None)
         logger.info("print_started", job_id=job_id, order_number=job["order_number"], user_code=job["user_code"])
 
         try:
             await self.print_service.print_pdf(str(job["file_path"]))
-            printed_at = datetime.now(timezone.utc)
+            printed_at = datetime.now(TASHKENT_TZ)
             archived_path = await asyncio.to_thread(
                 archive_printed_file,
                 str(job["file_path"]),

@@ -114,7 +114,7 @@ def start_archive_scheduler():
         logger.warning("archive_scheduler_not_started", reason="apscheduler missing")
         return None
 
-    scheduler = BackgroundScheduler(timezone="UTC")
+    scheduler = BackgroundScheduler(timezone="Asia/Tashkent")
     scheduler.add_job(
         cleanup_archive,
         "cron",

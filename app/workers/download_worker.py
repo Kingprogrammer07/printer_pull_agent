@@ -1,10 +1,13 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from app.core.config import Settings
 from app.core.logger import get_logger
 from app.repositories.job_repository import JobRepository, utc_now
 from app.services.download_service import DownloadService
+
+TASHKENT_TZ = ZoneInfo("Asia/Tashkent")
 
 
 logger = get_logger(__name__)
@@ -47,13 +50,13 @@ class DownloadWorker:
 
     async def _process_job(self, job: dict) -> None:
         job_id = int(job["id"])
-        started = datetime.now(timezone.utc)
+        started = datetime.now(TASHKENT_TZ)
         await self.repo.update_status(job_id, "DOWNLOADING", error_message=None)
         logger.info("download_started", job_id=job_id, order_number=job["order_number"], user_code=job["user_code"])
 
         try:
             file_path, file_size = await self.download_service.download(job)
-            duration_ms = int((datetime.now(timezone.utc) - started).total_seconds() * 1000)
+            duration_ms = int((datetime.now(TASHKENT_TZ) - started).total_seconds() * 1000)
             await self.repo.update_status(
                 job_id,
                 "DOWNLOADED",
@@ -82,7 +85,7 @@ class DownloadWorker:
             return
 
         delay = self._retry_delay(retry_count)
-        next_retry = datetime.now(timezone.utc) + timedelta(seconds=delay)
+        next_retry = datetime.now(TASHKENT_TZ) + timedelta(seconds=delay)
         await self.repo.update_status(
             job_id,
             "FAILED",

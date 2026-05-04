@@ -1,8 +1,10 @@
 import json
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from math import ceil
 from typing import Any, AsyncIterator
+from zoneinfo import ZoneInfo
 
 import aiosqlite
 
@@ -11,10 +13,16 @@ from app.repositories.base import BaseRepository
 
 
 RETRY_DELAYS_SECONDS = [5, 15, 45]
+TASHKENT_TZ = ZoneInfo("Asia/Tashkent")
+
+
+def tashkent_now() -> str:
+    return datetime.now(TASHKENT_TZ).replace(microsecond=0).isoformat()
 
 
 def utc_now() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+    """Backward compatibility alias."""
+    return tashkent_now()
 
 
 def row_to_dict(row: aiosqlite.Row | None) -> dict[str, Any] | None:
@@ -196,7 +204,7 @@ class JobRepository(BaseRepository):
         params: list[Any] = [*selected]
         age_clause = ""
         if older_than_days > 0:
-            cutoff = (datetime.now(timezone.utc) - timedelta(days=older_than_days)).replace(microsecond=0).isoformat()
+            cutoff = (datetime.now(TASHKENT_TZ) - timedelta(days=older_than_days)).replace(microsecond=0).isoformat()
             age_clause = " AND updated_at <= ?"
             params.append(cutoff)
 
@@ -618,9 +626,9 @@ class JobRepository(BaseRepository):
 
     @staticmethod
     def _timestamp_after(seconds: int) -> str:
-        return (datetime.now(timezone.utc) + timedelta(seconds=seconds)).replace(microsecond=0).isoformat()
+        return (datetime.now(TASHKENT_TZ) + timedelta(seconds=seconds)).replace(microsecond=0).isoformat()
 
     @staticmethod
     def _retry_timestamp(retry_count: int) -> str:
         delay = RETRY_DELAYS_SECONDS[min(max(retry_count - 1, 0), len(RETRY_DELAYS_SECONDS) - 1)]
-        return (datetime.now(timezone.utc) + timedelta(seconds=delay)).replace(microsecond=0).isoformat()
+        return (datetime.now(TASHKENT_TZ) + timedelta(seconds=delay)).replace(microsecond=0).isoformat()

@@ -4,6 +4,9 @@ import sys
 import threading
 import traceback
 from datetime import datetime
+from zoneinfo import ZoneInfo
+
+TASHKENT_TZ = ZoneInfo("Asia/Tashkent")
 
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -112,7 +115,7 @@ def _log_to_file(text: str) -> None:
     try:
         os.makedirs(os.path.dirname(_LOG_PATH), exist_ok=True)
         with open(_LOG_PATH, "a", encoding="utf-8") as f:
-            f.write(f"{datetime.now().isoformat()} {text}\n")
+            f.write(f"{datetime.now(TASHKENT_TZ).isoformat()} {text}\n")
     except Exception:
         pass
 
@@ -121,6 +124,9 @@ class PDFPrintAgentService(win32serviceutil.ServiceFramework):
     _svc_name_ = f"{settings.service_name}Agent"
     _svc_display_name_ = "PDF Print Queue Local Agent"
     _svc_description_ = "Connects to the cloud print queue and prints jobs on the local Windows printer."
+    _svc_deps_ = []
+    # Start automatically on Windows boot
+    StartType = win32service.SERVICE_AUTO_START
 
     def __init__(self, args):
         super().__init__(args)

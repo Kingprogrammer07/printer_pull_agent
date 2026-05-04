@@ -1,8 +1,11 @@
 import shutil
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from app.core.logger import get_logger
+
+TASHKENT_TZ = ZoneInfo("Asia/Tashkent")
 
 
 logger = get_logger(__name__)
@@ -13,12 +16,12 @@ def cleanup_archive(archive_dir: str, retention_days: int) -> int:
     if not base.exists():
         return 0
 
-    cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
+    cutoff = datetime.now(TASHKENT_TZ) - timedelta(days=retention_days)
     deleted = 0
     for path in base.rglob("*"):
         if not path.is_file():
             continue
-        modified = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
+        modified = datetime.fromtimestamp(path.stat().st_mtime, tz=TASHKENT_TZ)
         if modified < cutoff:
             path.unlink(missing_ok=True)
             deleted += 1
