@@ -152,6 +152,14 @@ class PDFPrintAgentService(win32serviceutil.ServiceFramework):
     def main(self):
         try:
             _log_to_file("main() started")
+
+            # Redirect stdout/stderr to a file so logger output is captured
+            # when running as a Windows service.
+            log_stream_path = os.path.join(BASE_DIR, "logs", "agent.out.log")
+            os.makedirs(os.path.dirname(log_stream_path), exist_ok=True)
+            sys.stdout = open(log_stream_path, "a", encoding="utf-8")
+            sys.stderr = sys.stdout
+
             self.loop = asyncio.new_event_loop()
             asyncio.set_event_loop(self.loop)
 
@@ -178,6 +186,10 @@ class PDFPrintAgentService(win32serviceutil.ServiceFramework):
                     self.loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
             finally:
                 self.loop.close()
+                try:
+                    sys.stdout.close()
+                except Exception:
+                    pass
 
         try:
             self.loop.run_until_complete(main_wrapper())
