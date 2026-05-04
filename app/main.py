@@ -178,8 +178,15 @@ async def require_login(request: Request, call_next):
         response = await call_next(request)
         return add_security_headers(response)
 
-    # if path.startswith("/api/") or path in {"/openapi.json", "/docs", "/redoc"}:
-    #     return add_security_headers(JSONResponse({"detail": "Login required"}, status_code=401))
+    # Internal service-to-service API key bypass
+    if settings.internal_api_key:
+        incoming_key = request.headers.get("X-Internal-API-Key", "")
+        if incoming_key == settings.internal_api_key:
+            response = await call_next(request)
+            return add_security_headers(response)
+
+    if path.startswith("/api/") or path in {"/openapi.json", "/docs", "/redoc"}:
+        return add_security_headers(JSONResponse({"detail": "Login required"}, status_code=401))
 
     next_url = path
     if request.url.query:

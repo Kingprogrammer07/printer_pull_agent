@@ -52,6 +52,8 @@ class Settings(BaseSettings):
     login_lock_minutes: int = 15
     auth_cookie_secure: bool = False
 
+    internal_api_key: str = ""
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
