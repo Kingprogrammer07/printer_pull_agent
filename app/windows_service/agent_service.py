@@ -197,4 +197,35 @@ class PDFPrintAgentService(win32serviceutil.ServiceFramework):
 
 
 if __name__ == "__main__":
-    win32serviceutil.HandleCommandLine(PDFPrintAgentService)
+    if len(sys.argv) > 1 and sys.argv[1].lower() == "install":
+        win32serviceutil.HandleCommandLine(PDFPrintAgentService)
+        # Set startup type to Automatic after installation
+        try:
+            import win32service
+            hscm = win32service.OpenSCManager(None, None, win32service.SC_MANAGER_ALL_ACCESS)
+            try:
+                hs = win32service.OpenService(
+                    hscm, PDFPrintAgentService._svc_name_, win32service.SERVICE_ALL_ACCESS
+                )
+                try:
+                    win32service.ChangeServiceConfig(
+                        hs,
+                        win32service.SERVICE_NO_CHANGE,
+                        win32service.SERVICE_AUTO_START,
+                        win32service.SERVICE_NO_CHANGE,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                        None,
+                    )
+                finally:
+                    win32service.CloseServiceHandle(hs)
+            finally:
+                win32service.CloseServiceHandle(hscm)
+        except Exception as exc:
+            _log_to_file(f"Failed to set auto-start: {exc}")
+    else:
+        win32serviceutil.HandleCommandLine(PDFPrintAgentService)
